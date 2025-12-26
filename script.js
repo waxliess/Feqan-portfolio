@@ -261,7 +261,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // GitHub Projects Integration
-    const GITHUB_USERNAME = 'waxliess';
+    const GITHUB_USERNAME = 'feq4n';
     const projectsGrid = document.getElementById('projects-grid');
     const projectTemplate = document.getElementById('project-card-template');
     const readmeCache = {};
