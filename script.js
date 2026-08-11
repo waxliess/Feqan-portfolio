@@ -12,6 +12,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const contactForm = document.getElementById('contactForm');
     const themeToggle = document.querySelector('.theme-toggle');
 
+    // Feature flags: keep the features in the code, but off by default.
+    // - customCursorEnabled: keeps the normal system mouse cursor when false.
+    // - snowfallEnabled: keeps the snow effect out of view when false.
+    const CONFIG = {
+        customCursorEnabled: false,
+        snowfallEnabled: false
+    };
+
+    // Read the current theme accent colors so decorative effects (particles,
+    // glow, bursts) always match the active theme instead of being hardcoded.
+    function getThemeHsl(varName) {
+        return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    }
+
     let mouseX = 0, mouseY = 0, cursorX = 0, cursorY = 0, followerX = 0, followerY = 0;
 
     const savedTheme = localStorage.getItem('theme') || 'dark';
@@ -28,10 +42,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function createThemeParticles() {
+        const particleColor = getThemeHsl('--primary');
         for (let i = 0; i < 20; i++) {
             const particle = document.createElement('div');
             const size = Math.random() * 10 + 5;
-            particle.style.cssText = 'position: fixed; width: ' + size + 'px; height: ' + size + 'px; background: hsl(250, 100%, 65%); border-radius: 50%; pointer-events: none; z-index: 10001; left: 50%; top: 50%;';
+            particle.style.cssText = 'position: fixed; width: ' + size + 'px; height: ' + size + 'px; background: hsl(' + particleColor + '); border-radius: 50%; pointer-events: none; z-index: 10001; left: 50%; top: 50%;';
             document.body.appendChild(particle);
             const angle = (Math.PI * 2 / 20) * i;
             const velocity = Math.random() * 200 + 100;
@@ -47,21 +62,29 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    document.addEventListener('mousemove', function(e) { mouseX = e.clientX; mouseY = e.clientY; });
+    if (CONFIG.customCursorEnabled && cursor && cursorFollower) {
+        cursor.style.display = 'block';
+        cursorFollower.style.display = 'block';
 
-    function animateCursor() {
-        cursorX += (mouseX - cursorX) * 0.2; cursorY += (mouseY - cursorY) * 0.2;
-        followerX += (mouseX - followerX) * 0.1; followerY += (mouseY - followerY) * 0.1;
-        cursor.style.left = cursorX + 'px'; cursor.style.top = cursorY + 'px';
-        cursorFollower.style.left = followerX - 20 + 'px'; cursorFollower.style.top = followerY - 20 + 'px';
-        requestAnimationFrame(animateCursor);
+        document.addEventListener('mousemove', function(e) { mouseX = e.clientX; mouseY = e.clientY; });
+
+        function animateCursor() {
+            cursorX += (mouseX - cursorX) * 0.2; cursorY += (mouseY - cursorY) * 0.2;
+            followerX += (mouseX - followerX) * 0.1; followerY += (mouseY - followerY) * 0.1;
+            cursor.style.left = cursorX + 'px'; cursor.style.top = cursorY + 'px';
+            cursorFollower.style.left = followerX - 20 + 'px'; cursorFollower.style.top = followerY - 20 + 'px';
+            requestAnimationFrame(animateCursor);
+        }
+        animateCursor();
+
+        const cursorPrimary = getThemeHsl('--primary');
+        document.querySelectorAll('a, button, .skill-item, .contact-link').forEach(function(el) {
+            el.addEventListener('mouseenter', function() { cursor.style.transform = 'scale(2)'; cursorFollower.style.transform = 'scale(1.5)'; cursorFollower.style.borderColor = 'hsl(' + cursorPrimary + ')'; });
+            el.addEventListener('mouseleave', function() { cursor.style.transform = 'scale(1)'; cursorFollower.style.transform = 'scale(1)'; cursorFollower.style.borderColor = 'hsl(' + cursorPrimary + ' / 0.5)'; });
+        });
     }
-    animateCursor();
-
-    document.querySelectorAll('a, button, .skill-item, .contact-link').forEach(function(el) {
-        el.addEventListener('mouseenter', function() { cursor.style.transform = 'scale(2)'; cursorFollower.style.transform = 'scale(1.5)'; cursorFollower.style.borderColor = 'hsl(250, 100%, 65%)'; });
-        el.addEventListener('mouseleave', function() { cursor.style.transform = 'scale(1)'; cursorFollower.style.transform = 'scale(1)'; cursorFollower.style.borderColor = 'hsla(250, 100%, 65%, 0.5)'; });
-    });
+    // When disabled, the cursor/cursor-follower elements stay hidden (see CSS)
+    // and the normal system mouse pointer is used, as requested.
 
     window.addEventListener('scroll', function() {
         if (window.scrollY > 50) navbar.classList.add('scrolled'); else navbar.classList.remove('scrolled');
@@ -125,10 +148,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    for (let i = 0; i < 80; i++) {
-        const flake = new Snowflake();
-        flake.y = Math.random() * snowCanvas.height;
-        snowflakes.push(flake);
+    if (CONFIG.snowfallEnabled) {
+        snowCanvas.style.display = 'block';
+        for (let i = 0; i < 80; i++) {
+            const flake = new Snowflake();
+            flake.y = Math.random() * snowCanvas.height;
+            snowflakes.push(flake);
+        }
     }
 
     function drawSettledSnow() {
@@ -152,7 +178,7 @@ document.addEventListener('DOMContentLoaded', function() {
         drawSettledSnow();
         requestAnimationFrame(animateSnow);
     }
-    animateSnow();
+    if (CONFIG.snowfallEnabled) animateSnow();
 
     function animateStats() {
         statNumbers.forEach(function(stat) {
@@ -188,8 +214,9 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.innerHTML = '<span>Sending...</span>'; btn.disabled = true;
             setTimeout(function() {
                 btn.innerHTML = '<span>Message Sent!</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>';
-                btn.style.background = 'linear-gradient(135deg, hsl(150, 80%, 50%), hsl(180, 70%, 50%))';
-                setTimeout(function() { btn.innerHTML = originalText; btn.style.background = ''; btn.disabled = false; contactForm.reset(); }, 3000);
+                btn.style.background = 'linear-gradient(135deg, hsl(' + getThemeHsl('--primary') + '), hsl(' + getThemeHsl('--secondary') + '))';
+                btn.style.color = 'hsl(' + getThemeHsl('--primary-foreground') + ')';
+                setTimeout(function() { btn.innerHTML = originalText; btn.style.background = ''; btn.style.color = ''; btn.disabled = false; contactForm.reset(); }, 3000);
             }, 1500);
         });
     }
@@ -223,9 +250,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.querySelectorAll('.btn-primary').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
+            const burstColor = getThemeHsl('--primary');
             for (let i = 0; i < 15; i++) setTimeout(function() {
                 const particle = document.createElement('div');
-                particle.style.cssText = 'position: fixed; width: 5px; height: 5px; background: hsl(250, 100%, 65%); border-radius: 50%; pointer-events: none; z-index: 9998;';
+                particle.style.cssText = 'position: fixed; width: 5px; height: 5px; background: hsl(' + burstColor + '); border-radius: 50%; pointer-events: none; z-index: 9998;';
                 particle.style.left = e.clientX + 'px'; particle.style.top = e.clientY + 'px';
                 document.body.appendChild(particle);
                 const angle = Math.random() * Math.PI * 2; const velocity = Math.random() * 50 + 20;
@@ -245,9 +273,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     (function createFloatingParticles() {
         const hero = document.querySelector('.hero-bg'); if (!hero) return;
+        const dotColor = getThemeHsl('--primary');
         for (let i = 0; i < 30; i++) {
             const dot = document.createElement('div'); const size = Math.random() * 4 + 2;
-            dot.style.cssText = 'position: absolute; width: ' + size + 'px; height: ' + size + 'px; background: hsl(250, 100%, 65%); border-radius: 50%; opacity: ' + (Math.random() * 0.3 + 0.1) + '; left: ' + (Math.random() * 100) + '%; top: ' + (Math.random() * 100) + '%; animation: floatDot ' + (Math.random() * 10 + 10) + 's ease-in-out infinite; animation-delay: ' + (Math.random() * -20) + 's;';
+            dot.style.cssText = 'position: absolute; width: ' + size + 'px; height: ' + size + 'px; background: hsl(' + dotColor + '); border-radius: 50%; opacity: ' + (Math.random() * 0.3 + 0.1) + '; left: ' + (Math.random() * 100) + '%; top: ' + (Math.random() * 100) + '%; animation: floatDot ' + (Math.random() * 10 + 10) + 's ease-in-out infinite; animation-delay: ' + (Math.random() * -20) + 's;';
             hero.appendChild(dot);
         }
         const style = document.createElement('style');
@@ -256,7 +285,8 @@ document.addEventListener('DOMContentLoaded', function() {
     })();
 
     document.querySelectorAll('.section-label').forEach(function(label) {
-        label.addEventListener('mouseenter', function() { this.style.transform = 'scale(1.05)'; this.style.boxShadow = '0 0 20px hsl(250, 100%, 65%, 0.5)'; });
+        const labelGlow = getThemeHsl('--primary');
+        label.addEventListener('mouseenter', function() { this.style.transform = 'scale(1.05)'; this.style.boxShadow = '0 0 20px hsl(' + labelGlow + ' / 0.5)'; });
         label.addEventListener('mouseleave', function() { this.style.transform = 'scale(1)'; this.style.boxShadow = 'none'; });
     });
 
